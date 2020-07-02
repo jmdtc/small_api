@@ -1,18 +1,24 @@
-const parseQueries = (queryObject) => {
-}
-
 const checkParamsInUrl = (queryObject) => {
   const removeBrackets = (dimension) => {
     const brackets = ["lt", "gt"]
+    const dimSplit = dimension.split("_")
+    if (dimSplit.some(el => brackets.includes(el))) {
+      const index = dimSplit.findIndex(el => brackets.includes(el))
+      const sliced = dimSplit.slice(0,index)
+      return sliced.join("_")
+    }
     return dimension
-      .split("_")
-      .filter(part => {
-        if (brackets.some(brack => brack === part)) {
-          return false
-        }
+  }
+  const checkForType = (paramType, value) => {
+    switch (paramType) {
+      case "string":
         return true
-      })
-      .join("_")
+      case "boolean":
+        const lowered = value.toLowerCase()
+        return lowered === "true" || lowered === "false"
+      case "array":
+        return Array.isArray(value)
+    }
   }
   const datatypes = {
     integer: ["power_trust", "visibility", "ref_domains", "price"],
@@ -20,30 +26,45 @@ const checkParamsInUrl = (queryObject) => {
     boolean: ["blacklist", "agency"],
     array: ["category"]
   }
-  const dimensionsChecked = Object.keys(datatypes).map(key => {
-    return {
-      type: key,
-      wrongType: Object.keys(queryObject).filter(queryKey => {
-        const noBracketsParam = removeBrackets(queryKey)
-        if (!Object.keys(datatypes).some(type => datatypes[type].includes(noBracketsParam))) return true
-        if (!datatypes[key].includes(noBracketsParam)) return false
-        switch (key) {
-          case "integer":
-            return !Number.isInteger(Number(queryObject[queryKey]))
-          case "string":
-            return false
-          case "boolean":
-            const lowered = queryObject[queryKey].toLowerCase()
-            return lowered !== "true" && lowered !== "false"
-          case "array":
-            return !Array.isArray(queryObject[queryKey])
+  const dimensionsChecked = Object.keys(queryObject).map(paramName => {
+    const paramType = Object.keys(datatypes).filter(type => {
+      if (datatypes[type].includes(paramName)) {
+        return true
+      }
+      return false
+    })[0]
+    const dimExists = paramType === undefined ? false : true
+    if (!dimExists) {
+      const formattedParamsName = removeBrackets(paramName)
+      const isInIntParamsList = datatypes.integer.includes(formattedParamsName)
+      if (!isInIntParamsList) {
+        return {
+          paramName: paramName,
+          dimExists: false,
+          isRightType: false
         }
-      })
+      }
+      const isInteger = Number.isInteger(Number(queryObject[paramName]))
+      return {
+        paramName: paramName,
+        dimExists: true,
+        isRightType: isInteger
+      }
+    }
+
+    const isRightType = checkForType(paramType, queryObject[paramName])
+    return {
+      paramName: paramName,
+      dimExists: dimExists,
+      isRightType: isRightType
     }
   })
-  const statusCode = dimensionsChecked.every(dim => dim.wrongType.length < 1) ?
+  const statusCode = dimensionsChecked.every(dim => dim.dimExists && dim.isRightType) ?
     200 : 400
-  return statusCode
+  return {
+    paramStatusCode: statusCode,
+    msg: dimensionsChecked
+  }
 }
 
 const price_gt = (queryObject) => {
@@ -56,7 +77,7 @@ const visibility_gt = () => {
 module.exports = (app, db) => {
   app.get("/api/domains", (req, res) => {
     const { query } = req
-    const paramStatusCode = checkParamsInUrl(query)
+    const { paramStatusCode } = checkParamsInUrl(query)
     res.statusCode = paramStatusCode
     if (paramStatusCode === 400) {
       res.status(400).send("Bad params")
