@@ -9,15 +9,34 @@ const checkParamsInUrl = (queryObject) => {
     }
     return dimension
   }
-  const checkForType = (paramType, value) => {
+  const getParamsCheckedObject = (paramsData) => {
+    const { paramType, paramName, value, dimExists } = paramsData
     switch (paramType) {
+      case "integer":
+        return {
+          paramName: paramName,
+          dimExists: false,
+          isRightType: false
+        }
       case "string":
-        return true
+        return {
+          paramName: paramName,
+          dimExists: dimExists,
+          isRightType: true
+        }
       case "boolean":
         const lowered = value.toLowerCase()
-        return lowered === "true" || lowered === "false"
+        return {
+          paramName: paramName,
+          dimExists: dimExists,
+          isRightType: lowered === "true" || lowered === "false"
+        }
       case "array":
-        return Array.isArray(value)
+        return {
+          paramName: paramName,
+          dimExists: dimExists,
+          isRightType: Array.isArray(value)
+        }
     }
   }
   const datatypes = {
@@ -51,33 +70,27 @@ const checkParamsInUrl = (queryObject) => {
         isRightType: isInteger
       }
     }
-
-    const isRightType = checkForType(paramType, queryObject[paramName])
-    return {
+    const paramsData = {
+      paramType: paramType,
       paramName: paramName,
-      dimExists: dimExists,
-      isRightType: isRightType
+      value: queryObject[paramName],
+      dimExists: dimExists
     }
+    return getParamsCheckedObject(paramsData)
   })
   const statusCode = dimensionsChecked.every(dim => dim.dimExists && dim.isRightType) ?
     200 : 400
   return {
     paramStatusCode: statusCode,
-    msg: dimensionsChecked
+    paramsCheckedMsg: dimensionsChecked
   }
-}
-
-const price_gt = (queryObject) => {
-}
-
-const visibility_gt = () => {
-
 }
 
 module.exports = (app, db) => {
   app.get("/api/domains", (req, res) => {
     const { query } = req
-    const { paramStatusCode } = checkParamsInUrl(query)
+    const { paramStatusCode, paramsCheckedMsg } = checkParamsInUrl(query)
+    console.log(paramsCheckedMsg)
     res.statusCode = paramStatusCode
     if (paramStatusCode === 400) {
       res.status(400).send("Bad params")
