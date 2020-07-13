@@ -1,11 +1,23 @@
 import dataTypes from "./dataTypes/domains_datatypes"
+import { getDomainsFromQuery } from "./sql/domains_get"
+
+const formatQuery = (queryObject) => {
+  const { category } = queryObject
+  if (category !== undefined && !Array.isArray(category)) {
+    return {
+      ...queryObject,
+      category: [category]
+    }
+  }
+  return queryObject
+}
 
 const checkParamsInUrl = (queryObject, dataTypes) => {
   const getParamType = (paramKey, value, dataTypes) => {
     const types = Object.keys(dataTypes)
     const paramTypeIndex = types.findIndex(type => {
       const typeDimensions = dataTypes[type]
-      if (type === "interval") {
+      if (type === "interval" || type === "float_interval") {
         return typeDimensions.map(dim => dim + "_gt").includes(paramKey) ||
           typeDimensions.map(dim => dim + "_lt").includes(paramKey)
       }
@@ -26,10 +38,13 @@ const checkParamsInUrl = (queryObject, dataTypes) => {
     let reqFulfilled = false
     switch (paramType) {
       case "page":
-        reqFulfilled = isInteger(paramValue) && paramValue >= 0
+        reqFulfilled = isInteger(paramValue) && paramValue > 0
         break;
       case "interval":
         reqFulfilled = isInteger(paramValue) && paramValue >= 0
+        break;
+      case "float_interval":
+        reqFulfilled = !Number.isNaN(paramValue) && paramValue >= 0
         break;
       case "string":
         reqFulfilled = true
@@ -39,7 +54,7 @@ const checkParamsInUrl = (queryObject, dataTypes) => {
         reqFulfilled = lowered === "true" || lowered === "false"
         break;
       case "array":
-        reqFulfilled = true
+        reqFulfilled = Array.isArray(paramValue)
         break;
     }
     return {
@@ -78,14 +93,17 @@ const checkParamsInUrl = (queryObject, dataTypes) => {
 
 
 module.exports = (app, db) => {
-  app.get("/api/domains", (req, res) => {
+  app.get("/api/domains", async (req, res) => {
     const { query } = req
-    const {msg, statusCode} = checkParamsInUrl(query, dataTypes)
+    const formattedQuery = formatQuery(query)
+    const { msg, statusCode } = checkParamsInUrl(formattedQuery, dataTypes)
     if (statusCode === 400) {
       res.status(400).send("Bad params")
     }
     else {
-      res.send("Champipon")
+      const domains = await getDomainsFromQuery(formattedQuery, db)
+      console.log(domains);
+      res.send(JSON.stringify(domains))
     }
   })
 }

@@ -1,17 +1,28 @@
 import express from "express"
-import bodyParser from "body-parser"
 import routes from "./app/routes"
-const app = express()
+import db from "./app/utils/dbAsync"
 
-//app.use(bodyParser.json());
-//app.use(bodyParser.urlencoded({ extended: true }));
+const app = express()
+db.open("./app/database/database.db")
 
 app.get("/", (req, res) => {
   res.send("Hello World!")
 })
 
-routes(app)
+routes(app, db)
 
-app.listen(8080, () => {
+const server = app.listen(8080, async function() {
   console.log("App listening on port 8080!")
 })
+
+process.on('SIGINT', async () => {
+    await db.close();
+    process.exit();
+});
+
+process.on('SIGUSR2', async () => {
+    await db.close();
+    process.exit()
+});
+
+//

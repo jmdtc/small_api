@@ -10,7 +10,9 @@
   "author": "Mathieu Delisle <mathieudelisle@outlook.com> (https://github.com/jmdtc)",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.17.1"
+    "express": "^4.17.1",
+    "lodash": "^4.17.19",
+    "sqlite3": "^5.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.10.4",
