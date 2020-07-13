@@ -102,8 +102,7 @@ module.exports = (app, db) => {
     }
     else {
       const domains = await getDomainsFromQuery(formattedQuery, db)
-      console.log(domains);
-      res.send(JSON.stringify(domains))
+      res.json(domains)
     }
   })
 }
