@@ -92,37 +92,50 @@ const getSqlClauses = (filters, pagination) => {
 
 const getDomainsFromFilters = async ({ values, whereClauses, limitClauses }, db) => {
   const squashEntries = (domains) => {
+    const getAgenciesKey = (acc, domId, agency_name, price) => {
+      const agencyObject = {
+        name: agency_name,
+        price: price
+      }
+      if (acc[domId]) {
+        if (acc[domId].agencies.some(a => _.isEqual(a, agencyObject)) ||
+        price === null || agency_name === null) {
+          return acc[domId].agencies
+        }
+        return [...acc[domId].agencies, agencyObject]
+      }
+      if (price === null || agency_name === null) {
+        return []
+      }
+      return [agencyObject]
+    }
+    
+    const getTagsKey = (acc, domId, newTag) => {
+      if (acc[domId]) {
+        if (acc[domId].tags.some(t => t === newTag) || newTag === null) {
+          return acc[domId].tags
+        }
+        return [...acc[domId].tags, newTag]
+      }
+      if (newTag === null) {
+        return []
+      }
+      return [newTag]
+    }
+
     const squashedObject = domains.reduce((acc, curr) => {
       const { id } = curr
       const toOmit = ["tag", "price", "agency_name"]
       const notToBeSquashed = _.omit(curr, toOmit)
       const { tag, price, agency_name } = _.pick(curr, toOmit)
-      const agencyObject = {
-        name: agency_name,
-        price: price
-      }
-
-      if (acc[id]) {
-        const existingEntry = acc[id]
-        const updatedTags = acc[id].tags.includes(tag) ?
-          acc[id].tags : [...acc[id].tags, tag]
-        const updatedAgencies = acc[id].agencies.some(a => _.isEqual(a, agencyObject)) ?
-          acc[id].agencies : [...acc[id].agencies, agencyObject]
-        return {
-          ...acc,
-          [id]: {
-            ...existingEntry,
-            tags: updatedTags,
-            agencies: updatedAgencies
-          }
-        }
-      }
+      const agencies = getAgenciesKey(acc, id, agency_name, price)
+      const tags = getTagsKey(acc, id, tag)
       return {
         ...acc,
         [id]: {
           ...notToBeSquashed,
-          tags: [tag],
-          agencies: [agencyObject]
+          tags: tags,
+          agencies: agencies
         }
       }
     }, {})
