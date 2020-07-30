@@ -1,0 +1,6 @@
+1. gérer les erreurs sur opening de DB
+2. sur les routes faire un if(statusCode < 200 || statusCode >= 300)...
+3. se renseigner sur les conventions de case en js
+4. return sur get route express?
+5. faire une fonction de check pour chaque type :
+  ex: float_interval : () => Number.isNan()...

@@ -28,7 +28,7 @@ const getWhereClause = (dimension, value) => {
     case "agency":
       return `agency = ?`
     case "category":
-      return `t.tag IN (${Array(value.length)
+      return `LOWER(t.tag) IN (${Array(value.length)
           .fill("?")
           .join(",")
         })`
@@ -45,7 +45,10 @@ const formatValue = (dimension, value) => {
       return boolToInt
     case "domain_name":
       return `%${value}%`
+    case "category":
+      return value.map(s => s.toLowerCase())
     default:
+      if (typeof value === "string") return value.toLowerCase()
       return value
   }
 }
@@ -109,7 +112,7 @@ const getDomainsFromFilters = async ({ values, whereClauses, limitClauses }, db)
       }
       return [agencyObject]
     }
-    
+
     const getTagsKey = (acc, domId, newTag) => {
       if (acc[domId]) {
         if (acc[domId].tags.some(t => t === newTag) || newTag === null) {
@@ -141,7 +144,9 @@ const getDomainsFromFilters = async ({ values, whereClauses, limitClauses }, db)
     }, {})
     return Object.values(squashedObject)
   }
-
+  if (whereClauses.length < 1) {
+    whereClauses = ["1 = 1"]
+  }
   const joinBase =
     `FROM domains d
     LEFT JOIN domain_tags dt ON d.id = dt.domain_id
