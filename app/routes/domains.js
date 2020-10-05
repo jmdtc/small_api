@@ -1,19 +1,25 @@
 import _ from "lodash"
 import dataTypes from "./dataTypes/domains_datatypes"
-import { getDomainsFromQuery } from "./sql/domains_get"
+import { getDomainsFromQuery, countResults, countColValues } from "./sql/domains_get"
 
-const formatQuery = (queryObject) => {
-  const { category } = queryObject
-  if (category !== undefined && !Array.isArray(category)) {
-    return {
-      ...queryObject,
-      category: [category]
+const squashCategories = (queryObject) => {
+  return Object.keys(queryObject).reduce((acc, curr) => {
+    const shouldBeArrays = ["category", "homepage_title"]
+    const value = queryObject[curr]
+    if (shouldBeArrays.includes(curr) && value !== undefined && !Array.isArray(value)) {
+      return {
+        ...acc,
+        [curr]: [value]
+      }
     }
-  }
-  return queryObject
+    return {
+      ...acc,
+      [curr]: value
+    }
+  },{})
 }
 
-const checkParamsInUrl = (queryObject, dataTypes) => {
+const checkParamsInUrl = async (queryObject, dataTypes, db) => {
   const getParamType = (paramKey, value, dataTypes) => {
     const types = Object.keys(dataTypes)
     const paramTypeIndex = types.findIndex(type => {
@@ -32,10 +38,9 @@ const checkParamsInUrl = (queryObject, dataTypes) => {
     }
   }
 
-  const checkParamRequirements = (paramTypeObject) => {
+  const checkParamRequirements = async (paramTypeObject, dataTypes, db) => {
     const isInteger = (val) => Number.isInteger(Number(val))
-
-    const { paramValue, paramType } = paramTypeObject
+    const { paramValue, paramType, paramKey } = paramTypeObject
     let reqFulfilled = false
     switch (paramType) {
       case "page":
@@ -50,12 +55,39 @@ const checkParamsInUrl = (queryObject, dataTypes) => {
       case "string":
         reqFulfilled = true
         break;
-      case "boolean":
+      case "boolean": {
         const lowered = paramValue.toLowerCase()
         reqFulfilled = lowered === "true" || lowered === "false"
         break;
+      }
       case "array":
         reqFulfilled = Array.isArray(paramValue)
+        break;
+      case "sorter": {
+        const lowered = paramValue.toLowerCase()
+        if (paramKey === "sort_by") {
+          const sql = `
+            SELECT
+              d.*,
+              ad.price
+            FROM domains d
+            LEFT JOIN domain_tags dt ON d.id = dt.domain_id
+            LEFT JOIN tags t ON dt.tag_id = t.id
+            LEFT JOIN agencies_domains ad ON d.id = ad.domain_id
+            LEFT JOIN agencies a ON ad.agency_id = a.id
+            WHERE d.id = 1
+          `
+          const columns = await db.all(sql).then(r => Object.keys(r[0]))
+          reqFulfilled = columns.includes(lowered)
+          break;
+        }
+        else if (paramKey === "order") {
+          reqFulfilled = (lowered === "asc" || lowered === "desc")
+        }
+        break;
+      }
+      default:
+        reqFulfilled = false
         break;
     }
     return {
@@ -77,7 +109,7 @@ const checkParamsInUrl = (queryObject, dataTypes) => {
     }
   }
 
-  const paramsTypeChecked = paramsMappedToType.map(param => checkParamRequirements(param))
+  const paramsTypeChecked = await Promise.all(paramsMappedToType.map(param => checkParamRequirements(param, dataTypes, db)))
   const statusCode = paramsTypeChecked.every(param => param.reqFulfilled === true) ?
     200 : 400
   const msg = statusCode === 400 ?
@@ -92,12 +124,19 @@ const checkParamsInUrl = (queryObject, dataTypes) => {
   }
 }
 
+const checkValidityOfParams = async ({query}, dataTypes, db) => {
+  const formattedQuery = squashCategories(query)
+  const paramsChecked = await checkParamsInUrl(formattedQuery, dataTypes, db)
+  return {
+    ...paramsChecked,
+    formattedQuery: formattedQuery
+  }
+}
+
 
 module.exports = (app, db) => {
   app.get("/api/domains", async (req, res) => {
-    const { query } = req
-    const formattedQuery = formatQuery(query)
-    const { msg, statusCode } = checkParamsInUrl(formattedQuery, dataTypes)
+    const { msg, statusCode, formattedQuery } = await checkValidityOfParams(req, dataTypes, db)
     if (statusCode === 400) {
       res.status(400).send("Bad params")
     }
@@ -105,5 +144,31 @@ module.exports = (app, db) => {
       const domains = await getDomainsFromQuery(formattedQuery, db)
       res.json(domains)
     }
+  })
+
+  app.get("/api/domains/countResults", async (req, res) => {
+    const { msg, statusCode, formattedQuery } = await checkValidityOfParams(req, dataTypes, db)
+    if (statusCode === 400) {
+      res.status(400).send("Bad params")
+    }
+    else {
+      const count = await countResults(formattedQuery, db)
+      res.json(count[0])
+    }
+  })
+
+  app.get("/api/domains/getCategories", async (req, res) => {
+    const availableTags = await countColValues("tag", db)
+    res.json(availableTags)
+  })
+
+  app.get("/api/domains/getLanguages", async (req, res) => {
+    const availableLangs = await countColValues("lang", db)
+    res.json(availableLangs)
+  })
+
+  app.get("/api/domains/getCountries", async (req, res) => {
+    const availableCountries = await countColValues("country", db)
+    res.json(availableCountries)
   })
 }

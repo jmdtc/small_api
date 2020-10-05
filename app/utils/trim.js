@@ -1,12 +1,28 @@
 const psl = require("psl")
 
 const urlToDomain = (url) => {
-  if (url.includes("http")) {
-    const hostName = url.split("/")[2]
-    const parsed = psl.parse(hostName)
-    return parsed.domain
+  const extractHostname = (url) => {
+    let hostname;
+
+    if (url.indexOf("//") > -1) {
+        hostname = url.split('/')[2];
+    }
+    else {
+        hostname = url.split('/')[0];
+    }
+
+    hostname = hostname.split(':')[0];
+    hostname = hostname.split('?')[0];
+
+    return hostname;
   }
-  return url
+
+  const hostName = extractHostname(url)
+  const parsed = psl.parse(hostName)
+  if (parsed.sld === "wordpress") {
+    return parsed.input
+  }
+  return psl.parse(hostName).domain
 }
 
 module.exports = {
