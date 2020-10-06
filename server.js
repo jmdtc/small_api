@@ -4,7 +4,7 @@ import db from "./app/utils/dbAsync"
 import cors from "cors"
 
 const app = express()
-db.open("./app/database/database.db")
+db.open("./app/database/database.db").catch(console.log)
 
 app.get("/", (req, res) => {
   res.send("Hello World!")
