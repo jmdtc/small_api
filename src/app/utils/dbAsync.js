@@ -44,13 +44,28 @@ module.exports.domains = {
     `
     return module.exports.run(sql, [domain_name, blacklistBool, agencyBool])
   },
+  insertFromLrt: (params) => {
+    const sql = `INSERT INTO domains
+    (domain_name, blacklist, blacklist_reason, agency, ip_country, lrt_theme,
+    lrt_sitetype, homepage_title, homepage_title_rank, keywords, lrt_power, lrt_trust,
+    lrt_power_trust, lrt_backlinks, lrt_referring_domains, semrush_traffic)
+    VALUES (${Array(16).fill("?").join(",")})
+    `
+    const { URL, Power_dom, Trust_dom, Power_Trust_dom, BLdom, DomPop,
+    Theme, SiteType, KwDomain, Title_home, TitleRank_home, SEMRushTraffic, CNTRY } = params
+
+    const values = [URL, 0, null, 0, CNTRY, Theme, SiteType, Title_home, TitleRank_home,
+    KwDomain, Power_dom, Trust_dom, Power_Trust_dom, BLdom, DomPop, SEMRushTraffic]
+
+    return module.exports.run(sql, values)
+  },
   exists: async (domain_name) => {
     const sql = `SELECT EXISTS(SELECT 1 FROM domains WHERE domain_name="${domain_name}")`
     const answer = await module.exports.all(sql)
     const bool = Object.values(answer[0])[0]
     return bool
   },
-  getId: async (domain_name) => {
+  getID: async (domain_name) => {
     const sql = `SELECT id FROM domains WHERE domain_name="${domain_name}"`
     const answer = await module.exports.all(sql)
     const { id } = answer[0]
@@ -73,7 +88,7 @@ module.exports.agencies = {
     const bool = Object.values(answer[0])[0]
     return bool
   },
-  getId: async (name) => {
+  getID: async (name) => {
     const sql = `SELECT id FROM agencies WHERE name="${name}"`
     const answer = await module.exports.all(sql)
     const { id } = answer[0]
@@ -89,7 +104,13 @@ module.exports.agencies_domains = {
     VALUES (?,?,?)
     `
     return module.exports.run(sql, [domain_id, agency_id, price])
-  }
+  },
+  exists: async function (domain_id, agency_id) {
+    const sql = `SELECT EXISTS(SELECT 1 FROM agencies_domains WHERE domain_id=${domain_id} AND agency_id=${agency_id})`
+    const answer = await module.exports.all(sql)
+    const bool = Object.values(answer[0])[0]
+    return bool
+  },
 }
 
 module.exports.keywords = {
@@ -107,7 +128,7 @@ module.exports.keywords = {
     const bool = Object.values(answer[0])[0]
     return bool
   },
-  getId: async (name) => {
+  getID: async (name) => {
     const sql = `SELECT id FROM keywords WHERE keyword="${name}"`
     const answer = await module.exports.all(sql)
     const { id } = answer[0]
@@ -141,7 +162,7 @@ module.exports.tags = {
     const bool = Object.values(answer[0])[0]
     return bool
   },
-  getId: async (name) => {
+  getID: async (name) => {
     const sql = `SELECT id FROM tags WHERE tag="${name}"`
     const answer = await module.exports.all(sql)
     const { id } = answer[0]
@@ -157,7 +178,13 @@ module.exports.domain_tags = {
     VALUES (?,?)
     `
     return module.exports.run(sql, [domain_id, tag_id])
-  }
+  },
+  exists: async function (domain_id, tag_id) {
+    const sql = `SELECT EXISTS(SELECT 1 FROM domain_tags WHERE domain_id=${domain_id} AND tag_id=${tag_id})`
+    const answer = await module.exports.all(sql)
+    const bool = Object.values(answer[0])[0]
+    return bool
+  },
 }
 
 module.exports.close = function() {

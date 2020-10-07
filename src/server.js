@@ -1,11 +1,17 @@
 require('dotenv').config()
 import express from "express"
+import path from "path"
+import cors from "cors"
 import routes from "./app/routes/index"
 import db from "./app/utils/dbAsync"
-import cors from "cors"
 
 const app = express()
-db.open("./app/database/database.db").catch(console.log)
+
+//path.resolve(__dirname, "database.db")
+//"./src/app/database/database.db"
+db.open(
+  path.resolve(__dirname, "database.db")
+).catch(console.log)
 
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
