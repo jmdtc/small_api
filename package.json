@@ -1,17 +1,21 @@
 {
   "name": "Leap_database",
   "version": "1.0.0",
+  "engines": {
+    "node": "12.x"
+  },
   "description": "Leap database",
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon --exec babel-node server.js",
-    "build": "babel src --out-dir dist"
+    "start": "nodemon --exec babel-node ./src/server.js",
+    "build": "babel ./src --out-dir dist"
   },
   "author": "Mathieu Delisle <mathieudelisle@outlook.com> (https://github.com/jmdtc)",
   "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "lodash": "^4.17.19",
     "sqlite3": "^5.0.0"
